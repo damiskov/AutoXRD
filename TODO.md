@@ -1,0 +1,4 @@
+- [ ] Generate Synthetic Data
+- [ ] Settle on similarity measure/clustering algorithm
+- [ ] Implement clustering algorithm/similarity measure 
+- [ ] Train and test! Demonstrate performance

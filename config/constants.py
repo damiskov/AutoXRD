@@ -1,0 +1,1 @@
+SEED = 42  # Random seed for reproducibility
