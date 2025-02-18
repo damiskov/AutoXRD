@@ -8,6 +8,39 @@ import pandas as pd
 SEED=42
 np.random.seed(SEED) # Set the random seed for reproducibility
 
+def gen_exp_decay_pattern(
+        x0: float,
+        decay_rate: float,
+        sigma: float,
+        interval: tuple = (0, 80),
+        resolution: int = 1000,
+) -> np.array:
+    """
+    Generates the base pattern for synthetic XRD data using an exponentially decaying function with Gaussian noise.
+
+    Parameters:
+        x0 (float): Initial value of the base pattern.
+        decay_rate (float): Rate of exponential decay.
+        sigma (float): Standard deviation of Gaussian noise added at each step.
+        interval (tuple): The interval of the base pattern (x-axis range).
+        resolution (int): Number of steps to generate the process.
+
+    Returns:
+        x_values (np.array): The x-values for the base pattern.
+        base_pattern (np.array): The base pattern with exponential decay and noise.
+    """
+    dt = (interval[1] - interval[0]) / resolution  # Step size
+    x_values = np.linspace(interval[0], interval[1], resolution)
+    
+    # Exponential decay function
+    base_pattern = x0 * np.exp(-decay_rate * x_values)
+
+    # Add Gaussian noise at each step
+    noise = np.random.normal(0, sigma, size=resolution)
+    base_pattern += noise
+    
+    return x_values, base_pattern
+
 def gen_base_pattern(
         x0: float,
         kappa: float,
@@ -62,7 +95,7 @@ def gen_reference_patterns(num_patterns: int = 10, interval: tuple = (0, 80)) ->
         num_peaks = np.random.choice([1, 2, 3, 4, 5])  # Uniform selection from 1 to 5
         peak_positions = np.sort(np.random.uniform(interval[0], interval[1], num_peaks))  # Positions
         peak_heights = np.abs(np.random.normal(loc=1.0, scale=0.4, size=num_peaks))  # Gaussian heights, positive values
-        peak_widths = np.random.uniform(0.01, 0.1, num_peaks)  # Uniformly sampled widths
+        peak_widths = np.random.uniform(0.01, 0.5, num_peaks)  # Uniformly sampled widths
         
         reference_patterns.append((peak_positions, peak_heights, peak_widths))
     
@@ -75,7 +108,8 @@ def gen_experimental_pattern(
         interval: tuple = (0, 80),
         resolution: int = 1000,
         phase_shift_prob: float = 0.3,  # Probability of applying a phase shift
-        phase_shift_range: float = 10.0  # Maximum shift in peak positions
+        phase_shift_range: float = 10.0,  # Maximum shift in peak positions
+        height_factor: float = 5.0 # Scaling peak height
 ) -> tuple:
     """
     Inserts random peaks from two reference patterns into the base pattern.
@@ -111,11 +145,10 @@ def gen_experimental_pattern(
         # Ensure peak remains within the valid range
         if interval[0] <= peak_pos <= interval[1]:
             # Add Gaussian peak to the pattern
-            xrd_pattern += peak_height * np.exp(-0.5 * ((x_values - peak_pos) / peak_width) ** 2)
+            xrd_pattern += height_factor * peak_height * np.exp(-0.5 * ((x_values - peak_pos) / peak_width) ** 2)
 
 
     return x_values, xrd_pattern
-
 
 # TODO : Implement the gen_total_pattern function
 def gen_total_pattern(
@@ -219,13 +252,10 @@ def plot_experimental_pattern(
         xrd_pattern (np.array): The base pattern with peaks inserted.
         interval (tuple): The x-axis range of the pattern.
     """
-    # Check the shapes
-    print(f"Base pattern shape: {base_pattern.shape}")
-    print(f"XRD pattern shape: {xrd_pattern.shape}")
-    print(f"X-values shape: {x_values.shape}")
+
     plt.figure(figsize=(10, 6))
-    plt.plot(x_values, base_pattern, label="Base Pattern")
-    plt.plot(x_values, xrd_pattern, label="Experimental Pattern")
+    plt.plot(x_values, base_pattern, label="Base Pattern", alpha=0.5)
+    plt.plot(x_values, xrd_pattern, label="Experimental Pattern", color="red", alpha=0.5)
     plt.xlabel("2θ")
     plt.ylabel("Intensity")
     plt.title("Synthetic XRD Data")
@@ -238,7 +268,7 @@ if __name__=="__main__":
     # For testing/generation of synthetic data
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("mode", type=str, default="plot_base_pattern",choices=["plot_base_pattern", "plot_single_reference_pattern", "plot_all_reference_patterns", "plot_experimental_pattern"], help="The mode to run the script in")
+    parser.add_argument("mode", type=str, default="plot_base_pattern",choices=["plot_base_pattern", "plot_single_reference_pattern", "plot_all_reference_patterns", "plot_experimental_pattern", "plot_exp_decay_pattern"], help="The mode to run the script in")
 
     args = parser.parse_args()
 
@@ -290,7 +320,8 @@ if __name__=="__main__":
             kappa = 0.05
             theta = 14
             sigma = 0.7
-            x_values, base_pattern = gen_base_pattern(x0, kappa, theta, sigma)
+            # x_values, base_pattern = gen_base_pattern(x0, kappa, theta, sigma)
+            x_values, base_pattern = gen_exp_decay_pattern(x0=5, decay_rate=0.05, sigma=0.2)
             # Get reference patterns
             reference_patterns = gen_reference_patterns(num_patterns=10)
             # Generate the experimental pattern
@@ -298,7 +329,15 @@ if __name__=="__main__":
             # Plot the experimental pattern
             plot_experimental_pattern(x_values, base_pattern, xrd_pattern)
 
-
+        case "plot_exp_decay_pattern":
+            x_values, base_pattern = gen_exp_decay_pattern(x0=5, decay_rate=0.05, sigma=0.2)
+            plt.plot(x_values, base_pattern)
+            plt.ylim(0, 2*max(base_pattern))
+            plt.xlim(0, 80)
+            plt.xlabel("2θ")
+            plt.ylabel("Intensity")
+            plt.title("Base Pattern for Synthetic XRD Data")
+            plt.show()
 
         case _:
             raise ValueError(f"Invalid mode: {args.mode}")
