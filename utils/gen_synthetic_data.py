@@ -2,11 +2,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
-# TODO : Sort out import issues
-# from config.constants import SEED
 
 SEED=42
 np.random.seed(SEED) # Set the random seed for reproducibility
+
+# ===== Data Generation Functions =====
 
 def gen_exp_decay_pattern(
         x0: float,
@@ -101,7 +101,6 @@ def gen_reference_patterns(num_patterns: int = 10, interval: tuple = (0, 80)) ->
     
     return reference_patterns
 
-# TODO : Fix this shit! Peaks must be much bigger!
 def gen_experimental_pattern(
         base_pattern: np.array,
         reference_patterns: list,
@@ -150,7 +149,6 @@ def gen_experimental_pattern(
 
     return x_values, xrd_pattern
 
-# TODO : Implement the gen_total_pattern function
 def gen_total_pattern(
         interval: tuple =(0, 2*np.pi),
         x0: float =1000,
@@ -263,12 +261,108 @@ def plot_experimental_pattern(
     plt.show()
 
 
+# ===== Dataset Generating Function =====
+
+def gen_dataset(
+        num_references: int = 10,
+        num_experimentals: int = 1000,
+        interval: tuple = (0, 80),
+        resolution: int = 1000,
+        noise_levels: list = [0.1, 0.2, 0.3, 0.5],
+        peak_scale_factors: list = [2.0, 3.0, 5.0]
+)->dict:
+    """
+    Generates a synthetic XRD dataset with separate metadata and pattern storage.
+
+    Parameters:
+        num_references (int): Number of reference patterns to generate.
+        num_experimentals (int): Number of experimental patterns to generate.
+        interval (tuple): The x-axis range for XRD patterns.
+        resolution (int): Number of data points per pattern.
+        noise_levels (list): Different levels of Gaussian noise to apply.
+        peak_scale_factors (list): Scaling factors for peak heights.
+
+    Saves:
+        - "synthetic_xrd_metadata.csv" (Metadata file)
+        - "synthetic_xrd_patterns.npy" (NumPy array storing all XRD patterns)
+    """
+
+    # Generate reference patterns
+    reference_patterns = gen_reference_patterns(num_patterns=num_references, interval=interval)
+    # Save reference patterns
+    np.save("data/reference_patterns.npy", reference_patterns)
+
+    # Store experimental patterns & metadata
+    experimental_patterns = np.zeros((num_experimentals, resolution))
+    metadata = []
+
+    for i in range(num_experimentals):
+        # Randomized parameters
+        sigma = np.random.choice(noise_levels)
+        height_factor = np.random.choice(peak_scale_factors)
+        decay_rate = np.random.uniform(0.02, 0.08)
+        x0 = np.random.uniform(3, 10)
+
+        # Generate base pattern
+        x_values, base_pattern = gen_exp_decay_pattern(
+            x0=x0,
+            decay_rate=decay_rate,
+            sigma=sigma,
+            interval=interval,
+            resolution=resolution
+        )
+
+        # Select reference patterns
+        ref_id1, ref_id2 = np.random.choice(range(num_references), 2, replace=False)
+
+        # Generate experimental pattern
+        phase_shift_prob = np.random.uniform(0.2, 0.5)
+        phase_shift_range = np.random.uniform(5, 15)
+
+        x_values, xrd_pattern = gen_experimental_pattern(
+            base_pattern,
+            [reference_patterns[ref_id1], reference_patterns[ref_id2]],
+            interval=interval,
+            resolution=resolution,
+            phase_shift_prob=phase_shift_prob,
+            phase_shift_range=phase_shift_range,
+            height_factor=height_factor
+        )
+
+        # Store pattern
+        experimental_patterns[i, :] = xrd_pattern
+
+        # Store metadata
+        metadata.append({
+            "pattern_id": i,
+            "ref_id1": ref_id1,
+            "ref_id2": ref_id2,
+            "noise_level": sigma,
+            "peak_scale": height_factor,
+            "decay_rate": decay_rate,
+            "x0": x0,
+            "phase_shift_prob": phase_shift_prob,
+            "phase_shift_range": phase_shift_range
+        })
+
+    # Save metadata as CSV
+    metadata_df = pd.DataFrame(metadata)
+    metadata_df.to_csv("data/synthetic_xrd_metadata.csv", index=False)
+
+    # Save patterns as a NumPy array
+    np.save("data/synthetic_xrd_patterns.npy", experimental_patterns)
+
+    print("Dataset generated and saved!")
+
+    return {"metadata": metadata, "experimental_patterns": experimental_patterns}
+
+
 if __name__=="__main__":
 
     # For testing/generation of synthetic data
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("mode", type=str, default="plot_base_pattern",choices=["plot_base_pattern", "plot_single_reference_pattern", "plot_all_reference_patterns", "plot_experimental_pattern", "plot_exp_decay_pattern"], help="The mode to run the script in")
+    parser.add_argument("mode", type=str, default="plot_base_pattern",choices=["plot_base_pattern", "plot_single_reference_pattern", "plot_all_reference_patterns", "plot_experimental_pattern", "plot_exp_decay_pattern", "gen_dataset"], help="The mode to run the script in")
 
     args = parser.parse_args()
 
@@ -338,6 +432,25 @@ if __name__=="__main__":
             plt.ylabel("Intensity")
             plt.title("Base Pattern for Synthetic XRD Data")
             plt.show()
+
+        case "gen_dataset":
+            num_experimentals = 1000
+            dataset = gen_dataset(num_references=10, num_experimentals=num_experimentals)
+            print(d)
+            
+            df = pd.DataFrame([
+                {
+                    "ref_id1": ref_ids[0],
+                    "ref_id2": ref_ids[1],
+                    "noise_level": noise_level,
+                    "peak_scale": peak_scale,
+                    "xrd_pattern": xrd_pattern
+                }
+                for _, xrd_pattern, ref_ids, noise_level, peak_scale in dataset["experimental_patterns"]
+            ])
+
+            # Save dataset
+            df.to_csv("data/synthetic_xrd_dataset.csv", index=False)
 
         case _:
             raise ValueError(f"Invalid mode: {args.mode}")
