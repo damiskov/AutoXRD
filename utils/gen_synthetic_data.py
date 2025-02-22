@@ -268,7 +268,7 @@ def gen_dataset(
         num_experimentals: int = 1000,
         interval: tuple = (0, 80),
         resolution: int = 1000,
-        noise_levels: list = [0.1, 0.2, 0.3, 0.5],
+        noise_levels: list = [0.05, 0.1, 0.15, 0.2],
         peak_scale_factors: list = [2.0, 3.0, 5.0]
 )->dict:
     """
@@ -289,8 +289,11 @@ def gen_dataset(
 
     # Generate reference patterns
     reference_patterns = gen_reference_patterns(num_patterns=num_references, interval=interval)
-    # Save reference patterns
-    np.save("data/reference_patterns.npy", reference_patterns)
+    # Save reference patterns as csv
+    ref_df = pd.DataFrame(reference_patterns)
+    # Set columns
+    ref_df.columns = ["peak_positions", "peak_heights", "peak_widths"]
+    ref_df.to_csv("data/synthetic_xrd_reference_patterns.csv", index=False)
 
     # Store experimental patterns & metadata
     experimental_patterns = np.zeros((num_experimentals, resolution))
@@ -436,21 +439,7 @@ if __name__=="__main__":
         case "gen_dataset":
             num_experimentals = 1000
             dataset = gen_dataset(num_references=10, num_experimentals=num_experimentals)
-            print(d)
             
-            df = pd.DataFrame([
-                {
-                    "ref_id1": ref_ids[0],
-                    "ref_id2": ref_ids[1],
-                    "noise_level": noise_level,
-                    "peak_scale": peak_scale,
-                    "xrd_pattern": xrd_pattern
-                }
-                for _, xrd_pattern, ref_ids, noise_level, peak_scale in dataset["experimental_patterns"]
-            ])
-
-            # Save dataset
-            df.to_csv("data/synthetic_xrd_dataset.csv", index=False)
 
         case _:
             raise ValueError(f"Invalid mode: {args.mode}")
