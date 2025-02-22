@@ -34,13 +34,22 @@ def plot_data(data, datatype_x, datatype_y, x = "all", y = "all",datatype_select
         x_data.append(get_data(data, datatype_x, x[i], y[i], False,False))
         y_data.append(get_data(data, datatype_y, x[i], y[i], False,False))
         if x[0] == "all" and y[0] == "all":
-            labels = data.columns.get_level_values(0).unique().values
+            labels = data.columns.get_level_values(0).unique().values # labels are coordinates
         else:
             grid = MI_to_grid(data)
             xcoord, ycoord = closest_coord(grid, x[i], y[i])
             labels.append('{:.1f},{:.1f}'.format(xcoord, ycoord))
     
     colors = plt.cm.jet(np.linspace(0, 1, len(labels))) #data.columns.get_level_values(0).unique().values
+
+    # Debugging
+    print(len(labels))
+    print(labels)
+    # Issue - len(labels) = 25, but
+
+    print(len(x_data))
+
+    # Debugging notes: 
 
     #formating
     if len(labels) == 1:
@@ -51,6 +60,9 @@ def plot_data(data, datatype_x, datatype_y, x = "all", y = "all",datatype_select
     else:
         x_data = np.transpose(x_data)
         y_data = np.transpose(y_data)
+
+    print(x_data.values.shape)
+    print(y_data.values.shape)
     
     #if datatype with multiple values per point is plotted only selects one value, based on the datatype_select, datatype_select_value. 
     if datatype_select != None:
@@ -69,6 +81,7 @@ def plot_data(data, datatype_x, datatype_y, x = "all", y = "all",datatype_select
             if scatter_plot:
                 plt.plot(x_val, y_val, 'o', color=colors[idx], label=labels[idx])
             else:
+                print(labels[idx])
                 plt.plot(x_val, y_val, color=colors[idx], label=labels[idx])
     else:
         for idx, (x_val, y_val) in enumerate(zip(x_data.T, y_data.T)):
