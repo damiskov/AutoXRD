@@ -9,6 +9,9 @@ __pycache__/
 # data
 data/
 
+# to do file
+TODO.md
+
 # Distribution / packaging
 .Python
 build/
